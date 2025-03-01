@@ -1,4 +1,5 @@
 import Link from "next/link"
+import LoginButton from "./loginButton";
 
 export default function Navbar() {
   return (
@@ -21,9 +22,7 @@ export default function Navbar() {
               <Link href="/about" className="font-bold hover:bg-[#008B9E] px-4 h-20 flex items-center justify-center transition">
                 About
               </Link>
-              <Link href="/destinations" className="font-bold hover:bg-[#008B9E] px-4 h-20 flex items-center justify-center transition">
-                Popular Destinations
-              </Link>
+              <LoginButton className="items-right justify-right hover:cursor-pointer"/>
             </div>
           </div>
         </div>
