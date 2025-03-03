@@ -1,18 +1,15 @@
-"use client";
-
-export default function FlightClassSelect({ flightClass, handleChange }) {
+export function FlightClassSelector({ flightClass, handleChange }) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium mb-1">Flight Class</label>
-      <select
+      <label className="block font-medium">Flight Class</label>
+      <select 
         name="flightClass"
         value={flightClass}
         onChange={handleChange}
-        className="w-full border rounded p-2"
-      >
-        <option value="economy">Economy</option>
-        <option value="business">Business</option>
-        <option value="firstClass">First Class</option>
+        className="w-full border rounded p-2">
+        <option value="Economy">Economy</option>
+        <option value="Business">Business</option>
+        <option value="First Class">First Class</option>
       </select>
     </div>
   );

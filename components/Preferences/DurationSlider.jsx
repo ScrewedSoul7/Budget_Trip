@@ -1,17 +1,14 @@
-"use client";
-
-export default function DurationSlider({ duration, handleChange }) {
+export function DurationSlider({ duration, handleChange }) {
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium mb-1">Duration: {duration} days</label>
+      <label className="block font-medium">Trip Duration (days)</label>
       <input
-        type="range"
+        type="number"
         name="duration"
-        min="1"
-        max="14"
         value={duration}
+        min="1"
         onChange={handleChange}
-        className="w-full cursor-pointer"
+        className="w-full p-2 border rounded-md"
       />
     </div>
   );
