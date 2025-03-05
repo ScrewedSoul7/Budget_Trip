@@ -11,30 +11,36 @@ export default function ItineraryPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) throw new Error("User not authenticated");
+      const user = auth.currentUser;
+      if (!user) {
+        setError("User not authenticated");
+        setLoading(false);
+        return;
+      }
 
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (!userDoc.exists() || !userDoc.data().selectedDestination) {
-          throw new Error("No destination selected");
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (!docSnap.exists() || !docSnap.data().selectedDestination) {
+          setError("No destination selected");
+          setLoading(false);
+          return;
         }
 
-        const { selectedDestination: destination, ...userData } = userDoc.data();
-        
+        const destination = docSnap.data().selectedDestination;
+        const userData = docSnap.data();
+
         // Fetch Weather
-        const weatherRes = await fetch(
+        const weatherResponse = await fetch(
           `https://api.weatherapi.com/v1/current.json?key=c82cd0bb0e5c4705ad5232413250103&q=${encodeURIComponent(destination)}`
         );
-        if (!weatherRes.ok) throw new Error("Weather fetch failed");
-        setWeather(await weatherRes.json());
+        
+        if (!weatherResponse.ok) throw new Error("Weather fetch failed");
+        setWeather(await weatherResponse.json());
 
         // Generate Itinerary
-        const prompt = `Create a detailed ${userData.duration}-day itinerary for ${destination} with $${userData.budget} budget.
-Include specific activities: ${userData.activities.join(", ")}.
-Format as numbered days with clear sections for Morning, Afternoon, Evening.`;
-
-        const itineraryRes = await fetch("https://api.fireworks.ai/inference/v1/completions", {
+        const itineraryResponse = await fetch("https://api.fireworks.ai/inference/v1/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -42,22 +48,28 @@ Format as numbered days with clear sections for Morning, Afternoon, Evening.`;
           },
           body: JSON.stringify({
             model: "accounts/fireworks/models/llama-v3-8b-instruct",
-            prompt,
-            max_tokens: 2000,
+            prompt: `Create a detailed ${userData.duration}-day itinerary for ${destination} with $${userData.budget} budget.
+              Include specific activities: ${userData.activities.join(", ")}.
+              Format as numbered days with clear sections for morning, afternoon, evening.`,
+            max_tokens: 1000,
             temperature: 0.5,
-            stream: false,
           }),
         });
 
-        if (!itineraryRes.ok) throw new Error("Itinerary generation failed");
-        const { choices } = await itineraryRes.json();
+        if (!itineraryResponse.ok) throw new Error("Failed to generate itinerary");
+        const itineraryData = await itineraryResponse.json();
         
-        if (!choices?.[0]?.text) throw new Error("Invalid itinerary format");
-        setItinerary(processItineraryResponse(choices[0].text));
+        // Clean and format itinerary text
+        const cleanedItinerary = itineraryData.choices[0].text
+          .split("\n")
+          .map(line => line.replace(/\*/g, "").trim()) // Remove all asterisks
+          .filter(line => line.length > 0);
 
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setError(err.message || "Failed to load data");
+        setItinerary(cleanedItinerary);
+
+      } catch (error) {
+        console.error("Error:", error);
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -66,57 +78,19 @@ Format as numbered days with clear sections for Morning, Afternoon, Evening.`;
     fetchData();
   }, []);
 
-  const processItineraryResponse = (text) => {
-    const days = [];
-    let currentDay = null;
-
-    text.split("\n")
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .forEach(line => {
-        const cleaned = line.replace(/[*\d+\.]/g, "").trim();
-        
-        // Detect day headers
-        const dayMatch = cleaned.match(/^Day\s(\d+):?(.*)/i);
-        if (dayMatch) {
-          currentDay = {
-            number: dayMatch[1],
-            title: dayMatch[2] || `Day ${dayMatch[1]}`,
-            sections: [],
-          };
-          days.push(currentDay);
-          return;
-        }
-
-        // Detect time sections
-        const timeMatch = cleaned.match(/^(Morning|Afternoon|Evening):?(.*)/i);
-        if (timeMatch && currentDay) {
-          currentDay.sections.push({
-            time: timeMatch[1],
-            content: timeMatch[2] ? [timeMatch[2]] : []
-          });
-          return;
-        }
-
-        // Add content to current section
-        if (currentDay?.sections?.length > 0 && cleaned) {
-          currentDay.sections[currentDay.sections.length - 1].content.push(cleaned);
-        }
-      });
-
-    return days;
-  };
-
   return (
     <section className="bg-cyan-50 text-[#1E3A5F] px-6 py-10 max-w-4xl mx-auto min-h-screen">
       <h2 className="text-4xl font-bold mb-8 text-center font-sans">Your Travel Plan</h2>
       
       {loading ? (
-        <p className="text-center text-xl text-cyan-700">Building your dream itinerary...</p>
+        <div className="text-center">
+          <p className="text-xl text-cyan-700 animate-pulse">Crafting your perfect itinerary...</p>
+        </div>
       ) : error ? (
         <p className="text-center text-red-600 font-medium text-xl">{error}</p>
       ) : (
         <div className="space-y-8">
+          {/* Weather Card */}
           {weather?.current && (
             <div className="p-6 bg-white rounded-xl shadow-lg border border-cyan-100">
               <h3 className="text-2xl font-bold mb-4 text-cyan-800">
@@ -129,42 +103,48 @@ Format as numbered days with clear sections for Morning, Afternoon, Evening.`;
                   className="w-20 h-20"
                 />
                 <div>
-                  <p className="text-3xl font-bold text-cyan-600">
-                    {weather.current.temp_c}°C
-                  </p>
+                  <p className="text-3xl font-bold text-cyan-600">{weather.current.temp_c}°C</p>
                   <p className="text-lg text-cyan-700">{weather.current.condition.text}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {itinerary?.map((day) => (
-            <div key={day.number} className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="bg-cyan-600 text-white rounded-lg w-12 h-12 flex items-center justify-center text-xl font-bold">
-                  {day.number}
-                </div>
-                <h3 className="text-2xl font-bold text-cyan-800">{day.title}</h3>
-              </div>
+          {/* Itinerary Section */}
+          {itinerary && (
+            <div className="space-y-8">
+              <h3 className="text-3xl font-bold text-cyan-800 text-center mb-6">
+                Travel Itinerary
+              </h3>
+              
+              <div className="space-y-6">
+                {itinerary.map((line, index) => {
+                  const isDayHeader = line.match(/^Day\s\d+/i);
+                  const isTimeSection = line.match(/(Morning|Afternoon|Evening)/i);
 
-              {day.sections.map((section) => (
-                <div key={section.time} className="mb-6">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full" />
-                    <h4 className="text-xl font-bold text-cyan-700">{section.time}</h4>
-                  </div>
-                  <div className="space-y-3 ml-8">
-                    {section.content.map((item, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <span className="text-cyan-400 mt-1.5">•</span>
-                        <p className="text-lg text-cyan-900">{item}</p>
+                  return (
+                    <div
+                      key={index}
+                      className={`
+                        ${isDayHeader ? 'bg-cyan-600 text-white p-4 rounded-xl' : ''}
+                        ${isTimeSection ? 'bg-cyan-100 text-cyan-800 px-4 py-2 rounded-lg mt-4' : ''}
+                        ${!isDayHeader && !isTimeSection ? 'pl-6' : ''}
+                        transition-all duration-200
+                      `}
+                    >
+                      <div className={`
+                        ${isDayHeader ? 'text-2xl font-bold' : ''}
+                        ${isTimeSection ? 'text-xl font-semibold' : 'text-lg'}
+                      `}>
+                        {line.replace(/^\d+\.\s*/, '').trim()}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                      {isTimeSection && <div className="border-b-2 border-cyan-200 mt-2 w-16" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          ))}
+          )}
         </div>
       )}
     </section>
