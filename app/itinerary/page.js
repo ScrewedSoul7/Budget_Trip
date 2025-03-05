@@ -53,7 +53,7 @@ Format as numbered days with clear sections for morning, afternoon, evening.`;
           body: JSON.stringify({
             model: "accounts/fireworks/models/llama-v3-8b-instruct",
             prompt: itineraryPrompt,
-            max_tokens: 500,
+            max_tokens: 1000,
             temperature: 0.5,
           }),
         });
