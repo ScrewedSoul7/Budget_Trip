@@ -4,7 +4,7 @@ import { auth } from "../backend/firebase";
 import { savePreferences } from "@/backend/savePreferences";
 import getPreferences from "@/backend/getPreferences";
 import { BudgetSetter } from "./Preferences/BudgetSetter";
-import { DurationSlider } from "./preferences/DurationSlider";
+import { DurationSlider } from "./Preferences/DurationSlider";
 import { ClimateSelector } from "./Preferences/ClimateSelector";
 import { FlightClassSelector } from "./Preferences/FlightClassSelector";
 import { ActivitiesSelector } from "./Preferences/ActivitiesSelector";
@@ -53,6 +53,7 @@ export default function UserPreferences() {
     const user = auth.currentUser;
 
     if (!user) {
+
       console.log("User not logged in");
       return;
     }
