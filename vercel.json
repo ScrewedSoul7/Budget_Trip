@@ -1,0 +1,9 @@
+{
+    "regions": ["iad1"],
+    "functions": {
+      "app/page.js": {
+        "memory": 3008,
+        "maxDuration": 30
+      }
+    }
+  }
